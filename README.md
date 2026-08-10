@@ -35,7 +35,20 @@ python -m pip install -e '.[dev]'
 ruff check .
 pytest -q
 whest validate --estimator estimator.py
-SOL_CV32_MAX_SAMPLES=32 python scripts/smoke_test.py --width 256 --depth 32 --budget 50000000000
+
+SOL_CV32_MAX_SAMPLES=32 python scripts/smoke_test.py \
+  --width 256 \
+  --depth 32 \
+  --budget 50000000000 \
+  --max-fraction 0.1 \
+  --max-seconds 60
+
+env -u SOL_CV32_MAX_SAMPLES python scripts/smoke_test.py \
+  --width 256 \
+  --depth 32 \
+  --budget 272000000000 \
+  --max-fraction 0.1 \
+  --max-seconds 60
 ```
 
 `SOL_CV32_MAX_SAMPLES` is a local and CI override. The submitted estimator does not require it and uses the built-in default when the variable is absent.
@@ -47,8 +60,11 @@ GitHub Actions runs:
 1. Ruff linting.
 2. Unit tests for shape, type, finiteness, nonnegativity, determinism, depth-one behavior, and budget planning.
 3. The official `whest validate --estimator estimator.py` contract check.
-4. A width-256, depth-32 smoke test with a reduced stochastic sample cap for CI runtime.
-5. Packaging of `dist/SOL-CV32-v0.1.tar.gz` as a downloadable workflow artifact.
+4. A width-256, depth-32 reduced-sample smoke test constrained below 10% of the supplied FLOP budget and 60 seconds.
+5. A width-256, depth-32 full-default smoke test at the competition budget of `272,000,000,000` FLOPs, again constrained below the 10% score frontier and 60 seconds.
+6. Packaging of `dist/SOL-CV32-v0.1.tar.gz` as a downloadable workflow artifact.
+
+The full-default CI test has measured approximately `22.11 billion` analytical FLOPs on the current dependency versions, below the `27.2 billion` 10% frontier. Wall-clock measurements vary by machine and are only smoke-test evidence, not a grader guarantee.
 
 ## Submission preparation
 

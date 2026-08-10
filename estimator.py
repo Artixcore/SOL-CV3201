@@ -25,7 +25,7 @@ import os
 
 import flopscope as flops
 import flopscope.numpy as fnp
-from whestbench import BaseEstimator, MLP
+from whestbench import MLP, BaseEstimator
 
 _VERSION = "0.1.0"
 

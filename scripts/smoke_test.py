@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import time
 
 import flopscope as flops
 import flopscope.numpy as fnp
@@ -27,13 +28,22 @@ def main() -> int:
     parser.add_argument("--depth", type=int, default=32)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--budget", type=int, default=50_000_000_000)
+    parser.add_argument("--max-fraction", type=float, default=1.0)
+    parser.add_argument("--max-seconds", type=float, default=None)
     args = parser.parse_args()
 
+    if not 0.0 < args.max_fraction <= 1.0:
+        raise SystemExit("--max-fraction must be in (0, 1]")
+    if args.max_seconds is not None and args.max_seconds <= 0.0:
+        raise SystemExit("--max-seconds must be positive")
+
     mlp = build_mlp(args.width, args.depth, args.seed)
+    started = time.monotonic()
     with flops.BudgetContext(flop_budget=args.budget, quiet=True) as context:
         prediction = Estimator().predict(mlp, args.budget)
         finite = bool(fnp.all(fnp.isfinite(prediction)))
         nonnegative = bool(fnp.all(prediction >= 0.0))
+    elapsed = time.monotonic() - started
 
     expected = (args.depth, args.width)
     if prediction.shape != expected:
@@ -42,13 +52,21 @@ def main() -> int:
         raise SystemExit("prediction contains NaN or Inf")
     if not nonnegative:
         raise SystemExit("prediction contains a negative ReLU mean")
-    if context.flops_used > args.budget:
-        raise SystemExit("estimator exceeded the supplied budget")
+
+    flop_limit = int(args.budget * args.max_fraction)
+    if context.flops_used > flop_limit:
+        raise SystemExit(
+            f"estimator used {context.flops_used:,} FLOPs, above limit {flop_limit:,}"
+        )
+    if args.max_seconds is not None and elapsed > args.max_seconds:
+        raise SystemExit(
+            f"estimator took {elapsed:.3f}s, above limit {args.max_seconds:.3f}s"
+        )
 
     print(
         "SOL-CV32 smoke test passed: "
         f"shape={prediction.shape}, flops={context.flops_used:,}, "
-        f"budget={args.budget:,}"
+        f"flop_limit={flop_limit:,}, elapsed={elapsed:.3f}s"
     )
     return 0
 
