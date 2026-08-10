@@ -46,12 +46,25 @@ jobs:
       - name: Validate WhestBench estimator contract
         run: whest validate --estimator estimator.py
 
-      - name: Competition-shape smoke test
+      - name: Reduced-sample competition-shape smoke test
         run: |
           python scripts/smoke_test.py \
             --width 256 \
             --depth 32 \
-            --budget 50000000000
+            --budget 50000000000 \
+            --max-fraction 0.1 \
+            --max-seconds 60
+
+      - name: Full default competition-budget smoke test
+        env:
+          SOL_CV32_MAX_SAMPLES: ""
+        run: |
+          python scripts/smoke_test.py \
+            --width 256 \
+            --depth 32 \
+            --budget 272000000000 \
+            --max-fraction 0.1 \
+            --max-seconds 60
 
       - name: Build submission archive
         run: |
